@@ -1,17 +1,79 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index afa6b0f..abc5b86 100644
+index afa6b0f..18adf1f 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -760,10 +760,8 @@ class MusicService : HeadlessJsTaskService() {
-         return HeadlessJsTaskConfig(TASK_KEY, Arguments.createMap(), 0, true)
+@@ -163,57 +163,59 @@ class MusicService : HeadlessJsTaskService() {
      }
  
--    @MainThread
--    override fun onBind(intent: Intent): IBinder {
--        return binder
--    }
-+    // onBind override removed to avoid "overrides nothing" compilation error
-+    // onBind is not required for HeadlessJsTaskService in newer RN/Kotlin setups
- 
      @MainThread
-     override fun onTaskRemoved(rootIntent: Intent?) {
+-    fun updateOptions(options: Bundle) {
++    fun updateOptions(options: Bundle?) {
++        // Accept nullable options for Kotlin compatibility; use an empty Bundle when null
+         latestOptions = options
+-        val androidOptions = options.getBundle(ANDROID_OPTIONS_KEY)
++        val opts = options ?: Bundle()
++        val androidOptions = opts.getBundle(ANDROID_OPTIONS_KEY)
+ 
+         appKilledPlaybackBehavior = AppKilledPlaybackBehavior::string.find(androidOptions?.getString(APP_KILLED_PLAYBACK_BEHAVIOR_KEY)) ?: AppKilledPlaybackBehavior.CONTINUE_PLAYBACK
+ 
+         BundleUtils.getIntOrNull(androidOptions, STOP_FOREGROUND_GRACE_PERIOD_KEY)?.let { stopForegroundGracePeriod = it }
+ 
+         // TODO: This handles a deprecated flag. Should be removed soon.
+-        options.getBoolean(STOPPING_APP_PAUSES_PLAYBACK_KEY).let {
+-            stoppingAppPausesPlayback = options.getBoolean(STOPPING_APP_PAUSES_PLAYBACK_KEY)
++        opts.getBoolean(STOPPING_APP_PAUSES_PLAYBACK_KEY).let {
++            stoppingAppPausesPlayback = opts.getBoolean(STOPPING_APP_PAUSES_PLAYBACK_KEY)
+             if (stoppingAppPausesPlayback) {
+                 appKilledPlaybackBehavior = AppKilledPlaybackBehavior.PAUSE_PLAYBACK
+             }
+         }
+ 
+-        ratingType = BundleUtils.getInt(options, "ratingType", RatingCompat.RATING_NONE)
++        ratingType = BundleUtils.getInt(opts, "ratingType", RatingCompat.RATING_NONE)
+ 
+         player.playerOptions.alwaysPauseOnInterruption = androidOptions?.getBoolean(PAUSE_ON_INTERRUPTION_KEY) ?: false
+ 
+-        capabilities = options.getIntegerArrayList("capabilities")?.map { Capability.values()[it] } ?: emptyList()
+-        notificationCapabilities = options.getIntegerArrayList("notificationCapabilities")?.map { Capability.values()[it] } ?: emptyList()
+-        compactCapabilities = options.getIntegerArrayList("compactCapabilities")?.map { Capability.values()[it] } ?: emptyList()
++        capabilities = opts.getIntegerArrayList("capabilities")?.map { Capability.values()[it] } ?: emptyList()
++        notificationCapabilities = opts.getIntegerArrayList("notificationCapabilities")?.map { Capability.values()[it] } ?: emptyList()
++        compactCapabilities = opts.getIntegerArrayList("compactCapabilities")?.map { Capability.values()[it] } ?: emptyList()
+ 
+         if (notificationCapabilities.isEmpty()) notificationCapabilities = capabilities
+ 
+         val buttonsList = notificationCapabilities.mapNotNull {
+             when (it) {
+                 Capability.PLAY, Capability.PAUSE -> {
+-                    val playIcon = BundleUtils.getIconOrNull(this, options, "playIcon")
+-                    val pauseIcon = BundleUtils.getIconOrNull(this, options, "pauseIcon")
++                    val playIcon = BundleUtils.getIconOrNull(this, opts, "playIcon")
++                    val pauseIcon = BundleUtils.getIconOrNull(this, opts, "pauseIcon")
+                     PLAY_PAUSE(playIcon = playIcon, pauseIcon = pauseIcon)
+                 }
+                 Capability.STOP -> {
+-                    val stopIcon = BundleUtils.getIconOrNull(this, options, "stopIcon")
++                    val stopIcon = BundleUtils.getIconOrNull(this, opts, "stopIcon")
+                     STOP(icon = stopIcon)
+                 }
+                 Capability.SKIP_TO_NEXT -> {
+-                    val nextIcon = BundleUtils.getIconOrNull(this, options, "nextIcon")
++                    val nextIcon = BundleUtils.getIconOrNull(this, opts, "nextIcon")
+                     NEXT(icon = nextIcon, isCompact = isCompact(it))
+                 }
+                 Capability.SKIP_TO_PREVIOUS -> {
+-                    val previousIcon = BundleUtils.getIconOrNull(this, options, "previousIcon")
++                    val previousIcon = BundleUtils.getIconOrNull(this, opts, "previousIcon")
+                     PREVIOUS(icon = previousIcon, isCompact = isCompact(it))
+                 }
+                 Capability.JUMP_FORWARD -> {
+-                    val forwardIcon = BundleUtils.getIcon(this, options, "forwardIcon", TrackPlayerR.drawable.forward)
++                    val forwardIcon = BundleUtils.getIcon(this, opts, "forwardIcon", TrackPlayerR.drawable.forward)
+                     FORWARD(icon = forwardIcon, isCompact = isCompact(it))
+                 }
+                 Capability.JUMP_BACKWARD -> {
+-                    val backwardIcon = BundleUtils.getIcon(this, options, "rewindIcon", TrackPlayerR.drawable.rewind)
++                    val backwardIcon = BundleUtils.getIcon(this, opts, "rewindIcon", TrackPlayerR.drawable.rewind)
+                     BACKWARD(icon = backwardIcon, isCompact = isCompact(it))
+                 }
+                 Capability.SEEK_TO -> {
